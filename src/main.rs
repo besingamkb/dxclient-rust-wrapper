@@ -57,25 +57,6 @@ fn main() {
         "{} run -e VOLUME_DIR=\"{}\" {} {} --network=host --platform linux/amd64 --name dxclient --rm {}:{} ./bin/dxclient {}",
         container_runtime, volume_dir, tty_flag, volume_params, image_name, image_tag, args.join(" ")
     );
-    println!("{}", docker_cmd);
-
-    // let output = Command::new("sh")
-    //     .arg("-c")
-    //     .arg(docker_cmd)
-    //     .output()
-    //     .expect("Failed to execute command");
-    //
-    // if !output.stdout.is_empty() {
-    //     println!("STDOUT {}", String::from_utf8_lossy(&output.stdout));
-    // }
-    // if !output.stderr.is_empty() {
-    //     println!("STDERR {}", String::from_utf8_lossy(&output.stderr));
-    // }
-    //
-    // if !output.status.success() {
-    //     println!("Error executing Docker command: {:?}", output.status);
-    //     return;
-    // }
 
     let mut child = Command::new("sh")
         .arg("-c")
@@ -89,14 +70,14 @@ fn main() {
     let stdout = child.stdout.take().unwrap();
     let stdout_reader = BufReader::new(stdout);
     for line in stdout_reader.lines() {
-        println!("STDOUT: {}", line.expect("Failed to read STDOUT"));
+        println!("{}", line.expect("Failed to read STDOUT"));
     }
 
     // read and print stderr
     let stderr = child.stderr.take().unwrap();
     let stderr_reader = BufReader::new(stderr);
     for line in stderr_reader.lines() {
-        println!("STDERR: {}", line.expect("Failed to read STDERR"));
+        println!("{}", line.expect("Failed to read STDERR"));
     }
 
     // wait for command to finish

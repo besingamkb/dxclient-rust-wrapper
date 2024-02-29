@@ -7,6 +7,9 @@ use atty::Stream;
 fn main() {
     let image_name = "dxclient";
     let image_tag = "local";
+    let os_type = env::consts::OS;
+    let is_windows = os_type == "windows";
+    println!("Is Windows? {}", is_windows);
 
     // parse command-line arguments
     let args: Vec<String> = env::args().skip(1).collect();
@@ -17,7 +20,10 @@ fn main() {
         .map(|arg| {
             if Path::new(arg).exists() {
                 let base_name = Path::new(arg).file_name().unwrap().to_string_lossy();
-                return format!("{}/{}", container_folder, base_name)
+                return match is_windows {
+                    false => format!("{}/{}", container_folder, base_name),
+                    true => format!("{}\\{}", container_folder, base_name),
+                }
             }
             arg.to_string()
         }).collect();
@@ -58,30 +64,38 @@ fn main() {
         container_runtime, volume_dir, tty_flag, volume_params, image_name, image_tag, args.join(" ")
     );
 
-    let mut child = Command::new("sh")
-        .arg("-c")
-        .arg(docker_cmd)
+    let mut biding = match is_windows {
+        true => Command::new("cmd"),
+        false => Command::new("sh"),
+    };
+
+    let child = match is_windows {
+        true => biding.arg("/C"),
+        false => biding.arg("-c"),
+    };
+    println!("generated docker command: {}", docker_cmd);
+    child.arg(docker_cmd)
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("Failed to execute command");
+        .stderr(Stdio::piped());
+
+    let mut child_process = child.spawn().expect("Failed to execute command");
 
     // read and print stdout
-    let stdout = child.stdout.take().unwrap();
+    let stdout = child_process.stdout.take().unwrap();
     let stdout_reader = BufReader::new(stdout);
     for line in stdout_reader.lines() {
         println!("{}", line.expect("Failed to read STDOUT"));
     }
 
     // read and print stderr
-    let stderr = child.stderr.take().unwrap();
+    let stderr = child_process.stderr.take().unwrap();
     let stderr_reader = BufReader::new(stderr);
     for line in stderr_reader.lines() {
         println!("{}", line.expect("Failed to read STDERR"));
     }
 
     // wait for command to finish
-    let status = child.wait().expect("Failed to wait for command");
+    let status = child_process.wait().expect("Failed to wait for command");
     if !status.success() {
         println!("Error executing docker command: {:?}", status);
         return;
